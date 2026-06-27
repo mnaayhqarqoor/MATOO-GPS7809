@@ -1,0 +1,3432 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MATOO GPS - ملاحة بدون إنترنت</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+
+:root {
+  --primary: #00C853;
+  --primary-dark: #009624;
+  --accent: #FF6D00;
+  --bg-dark: #0a0e17;
+  --bg-card: #111827;
+  --bg-card2: #1a2332;
+  --text: #ffffff;
+  --text-dim: #8892a4;
+  --danger: #FF1744;
+  --warning: #FFD600;
+  --info: #00B0FF;
+  --border: #1e2d3d;
+  --glow-green: 0 0 20px rgba(0,200,83,0.3);
+  --glow-orange: 0 0 20px rgba(255,109,0,0.3);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Tajawal', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Splash Screen */
+#splashScreen {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #0a0e17 0%, #1a2332 50%, #0a0e17 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: opacity 0.8s, transform 0.8s;
+}
+
+#splashScreen.hide {
+  opacity: 0;
+  transform: scale(1.1);
+  pointer-events: none;
+}
+
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 900;
+  color: white;
+  animation: splashPulse 2s infinite;
+  box-shadow: 0 0 60px rgba(0,200,83,0.4);
+  margin-bottom: 20px;
+}
+
+@keyframes splashPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.splash-title {
+  font-size: 36px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.splash-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.splash-loader {
+  margin-top: 40px;
+  width: 200px;
+  height: 3px;
+  background: var(--bg-card2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.splash-loader-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+  animation: splashLoad 2.5s ease-in-out forwards;
+}
+
+@keyframes splashLoad {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+/* Header */
+.app-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 60px;
+  background: rgba(10,14,23,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1000;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.header-logo-text {
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gps-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 10px;
+  background: var(--bg-card2);
+  border-radius: 20px;
+}
+
+.gps-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: blink 1s infinite;
+}
+
+.gps-dot.active {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.sat-count {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 70px;
+  background: rgba(10,14,23,0.98);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.nav-item.active {
+  background: rgba(0,200,83,0.1);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--primary);
+}
+
+.nav-item.active .nav-label {
+  color: var(--primary);
+}
+
+.nav-icon {
+  font-size: 22px;
+  color: var(--text-dim);
+  transition: color 0.3s;
+}
+
+.nav-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+/* Pages */
+.page {
+  display: none;
+  padding-top: 60px;
+  padding-bottom: 80px;
+  min-height: 100vh;
+}
+
+.page.active {
+  display: block;
+}
+
+/* Navigation Page (Main Compass) */
+.compass-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.compass-ring {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  margin: 20px 0;
+}
+
+.compass-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 30px rgba(0,200,83,0.2));
+}
+
+.compass-center-info {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.compass-bearing {
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.compass-degree {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+.compass-direction-name {
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* Info Cards */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 0 16px;
+  width: 100%;
+  max-width: 500px;
+  margin: 10px auto;
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.info-card:active {
+  transform: scale(0.97);
+}
+
+.info-card-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.info-card-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.info-card-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.info-card-value.accent { color: var(--accent); }
+.info-card-value.info { color: var(--info); }
+.info-card-value.warning { color: var(--warning); }
+
+/* Destination Panel */
+.destination-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  margin: 16px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dest-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dest-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: none;
+  font-family: 'Tajawal', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.dest-btn.primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+}
+
+.dest-btn.secondary {
+  background: var(--bg-card2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.dest-btn:active {
+  transform: scale(0.95);
+}
+
+.dest-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dest-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.dest-input {
+  flex: 1;
+  padding: 12px 14px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s;
+  direction: ltr;
+  text-align: center;
+}
+
+.dest-input:focus {
+  border-color: var(--primary);
+}
+
+.dest-input::placeholder {
+  color: var(--text-dim);
+}
+
+.dest-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.dest-info-item {
+  text-align: center;
+}
+
+.dest-info-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.dest-info-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Map Page */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 140px);
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 999;
+}
+
+.map-ctrl-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(17,24,39,0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  color: white;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.map-ctrl-btn:active {
+  transform: scale(0.9);
+  background: var(--primary);
+}
+
+.map-overlay-info {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 999;
+  background: rgba(17,24,39,0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+}
+
+/* Tools Page */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.tool-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tool-card:active {
+  transform: scale(0.93);
+  border-color: var(--primary);
+}
+
+.tool-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.tool-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Locations Page */
+.locations-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.locations-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.locations-search {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  width: calc(100% - 32px);
+  outline: none;
+}
+
+.locations-search:focus {
+  border-color: var(--primary);
+}
+
+.location-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 0 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.3s;
+}
+
+.location-item:active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+}
+
+.loc-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.loc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.loc-name {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loc-coords {
+  font-size: 12px;
+  color: var(--text-dim);
+  direction: ltr;
+  text-align: right;
+}
+
+.loc-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.loc-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.loc-action-btn:active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Settings Page */
+.settings-section {
+  padding: 16px;
+}
+
+.settings-section-title {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-right: 4px;
+}
+
+.settings-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item:active {
+  background: var(--bg-card2);
+}
+
+.settings-item-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-item-icon {
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-card2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-item-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-item-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 26px;
+  background: var(--bg-card2);
+  border-radius: 13px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+  border: 1px solid var(--border);
+}
+
+.toggle-switch.active {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  right: 2px;
+  transition: transform 0.3s;
+}
+
+.toggle-switch.active::after {
+  transform: translateX(-22px);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 20px;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* Qibla */
+.qibla-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.qibla-compass {
+  width: 250px;
+  height: 250px;
+  position: relative;
+  margin: 20px 0;
+}
+
+.qibla-info {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.qibla-degrees {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+/* Prayer Times */
+.prayer-container {
+  padding: 16px;
+}
+
+.prayer-date {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.prayer-date-hijri {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.prayer-date-greg {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.prayer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 8px;
+}
+
+.prayer-item.current {
+  border-color: var(--primary);
+  background: rgba(0,200,83,0.05);
+}
+
+.prayer-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.prayer-time {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+  direction: ltr;
+}
+
+/* Speedometer */
+.speedo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px;
+}
+
+.speedo-ring {
+  width: 260px;
+  height: 260px;
+  position: relative;
+}
+
+.speedo-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.speedo-value {
+  font-size: 64px;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.speedo-unit {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+/* Sun Moon */
+.sunmoon-container {
+  padding: 16px;
+}
+
+.sunmoon-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.sunmoon-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.sunmoon-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.sunmoon-times {
+  display: flex;
+  justify-content: space-around;
+}
+
+.sunmoon-time-item {
+  text-align: center;
+}
+
+.sunmoon-time-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.sunmoon-time-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--warning);
+  direction: ltr;
+}
+
+/* World Clock */
+.worldclock-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin: 0 16px 8px;
+}
+
+.wc-city {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wc-diff {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.wc-time {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--primary);
+  direction: ltr;
+}
+
+/* Trip Planner */
+.trip-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  margin: 0 16px 12px;
+}
+
+.trip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.trip-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.trip-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.trip-stat {
+  text-align: center;
+}
+
+.trip-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.trip-stat-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* Coordinate Converter */
+.converter-container {
+  padding: 16px;
+}
+
+.converter-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.converter-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.converter-result {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  direction: ltr;
+  text-align: center;
+  padding: 10px;
+  background: var(--bg-card2);
+  border-radius: 10px;
+  margin-top: 8px;
+  word-break: break-all;
+}
+
+/* Weather */
+.weather-card {
+  background: linear-gradient(135deg, #1a3a5c, #0a1628);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  margin: 16px;
+  text-align: center;
+}
+
+.weather-icon {
+  font-size: 64px;
+  margin-bottom: 10px;
+}
+
+.weather-temp {
+  font-size: 48px;
+  font-weight: 900;
+}
+
+.weather-desc {
+  font-size: 16px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.weather-details {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.weather-detail-item {
+  text-align: center;
+}
+
+.weather-detail-icon {
+  font-size: 20px;
+}
+
+.weather-detail-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.weather-detail-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Altitude */
+.altitude-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px;
+}
+
+.altitude-value {
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--info);
+  line-height: 1;
+}
+
+.altitude-unit {
+  font-size: 20px;
+  color: var(--text-dim);
+}
+
+/* Distance Calculator */
+.dist-calc-container {
+  padding: 16px;
+}
+
+.dist-result {
+  text-align: center;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin: 16px 0;
+}
+
+.dist-result-value {
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.dist-result-unit {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+/* Nearby */
+.nearby-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin: 0 16px 8px;
+}
+
+.nearby-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-card2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.nearby-info { flex: 1; }
+
+.nearby-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nearby-dist {
+  font-size: 12px;
+  color: var(--primary);
+}
+
+/* Notification Toast */
+.toast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: var(--bg-card);
+  border: 1px solid var(--primary);
+  border-radius: 14px;
+  padding: 12px 20px;
+  z-index: 3000;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.4s ease;
+  box-shadow: var(--glow-green);
+  white-space: nowrap;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Section Title */
+.section-title {
+  font-size: 18px;
+  font-weight: 800;
+  padding: 16px 16px 8px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Leaflet overrides */
+.leaflet-control-zoom { display: none; }
+.leaflet-control-attribution { display: none; }
+
+/* Responsive */
+@media (min-width: 500px) {
+  .info-grid { grid-template-columns: repeat(3, 1fr); }
+  .tools-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Arrow Animation */
+.arrow-pointer {
+  transition: transform 0.5s ease;
+}
+
+/* Pulse ring */
+.pulse-ring {
+  position: absolute;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: pulseRing 2s infinite;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Import/Export buttons */
+.ie-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin: 0 16px 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: calc(100% - 32px);
+}
+
+.ie-btn:active {
+  border-color: var(--primary);
+  transform: scale(0.98);
+}
+
+.ie-btn-icon {
+  font-size: 24px;
+}
+
+.ie-btn-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ie-btn-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Trip tracking active bar */
+.trip-active-bar {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  padding: 12px 16px;
+  margin: 0 16px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trip-active-bar .tab-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.trip-active-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.trip-active-stat {
+  text-align: center;
+}
+
+.trip-active-stat-val {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.trip-active-stat-lbl {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Coordinate format selector */
+.format-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.format-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card2);
+  color: var(--text-dim);
+  font-family: 'Tajawal', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.format-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-text {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.empty-state-desc {
+  font-size: 13px;
+  margin-top: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- Splash Screen -->
+<div id="splashScreen">
+  <div class="splash-logo">M</div>
+  <div class="splash-title">MATOO GPS</div>
+  <div class="splash-sub">ملاحة بدون إنترنت للصحراء والرحلات</div>
+  <div class="splash-loader">
+    <div class="splash-loader-bar"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-logo">
+    <div class="header-logo-icon">M</div>
+    <span class="header-logo-text">MATOO GPS</span>
+  </div>
+  <div class="header-status">
+    <div class="gps-status">
+      <div class="gps-dot" id="gpsDot"></div>
+      <span id="gpsStatusText">جاري البحث...</span>
+    </div>
+    <span class="sat-count" id="satCount">🛰️ 0</span>
+  </div>
+</header>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="switchPage('navigation')">
+    <span class="nav-icon">🧭</span>
+    <span class="nav-label">الملاحة</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('map')">
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">الخريطة</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('tools')">
+    <span class="nav-icon">🔧</span>
+    <span class="nav-label">الأدوات</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('locations')">
+    <span class="nav-icon">📍</span>
+    <span class="nav-label">المواقع</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('settings')">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">الإعدادات</span>
+  </div>
+</nav>
+
+<!-- ========== NAVIGATION PAGE ========== -->
+<div class="page active" id="page-navigation">
+  <div class="compass-container fade-in">
+    <!-- Compass -->
+    <div class="compass-ring">
+      <svg class="compass-svg" viewBox="0 0 300 300" id="compassSvg">
+        <defs>
+          <linearGradient id="compassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00C853;stop-opacity:0.2" />
+            <stop offset="100%" style="stop-color:#FF6D00;stop-opacity:0.2" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <!-- Outer ring -->
+        <circle cx="150" cy="150" r="140" fill="none" stroke="#1e2d3d" stroke-width="2"/>
+        <circle cx="150" cy="150" r="130" fill="url(#compassGrad)" stroke="#1e2d3d" stroke-width="1"/>
+        <circle cx="150" cy="150" r="100" fill="none" stroke="#1e2d3d" stroke-width="1" stroke-dasharray="4,4"/>
+        
+        <!-- Degree marks -->
+        <g id="degreeMarks"></g>
+        
+        <!-- Cardinal directions -->
+        <text x="150" y="35" text-anchor="middle" fill="#FF1744" font-size="18" font-weight="900" font-family="Tajawal">N</text>
+        <text x="150" y="278" text-anchor="middle" fill="#8892a4" font-size="16" font-weight="700" font-family="Tajawal">S</text>
+        <text x="275" y="155" text-anchor="middle" fill="#8892a4" font-size="16" font-weight="700" font-family="Tajawal">E</text>
+        <text x="25" y="155" text-anchor="middle" fill="#8892a4" font-size="16" font-weight="700" font-family="Tajawal">W</text>
+        
+        <!-- Degree numbers -->
+        <text x="150" y="55" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">0°</text>
+        <text x="240" y="65" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">45°</text>
+        <text x="255" y="155" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">90°</text>
+        <text x="240" y="248" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">135°</text>
+        <text x="150" y="260" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">180°</text>
+        <text x="60" y="248" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">225°</text>
+        <text x="45" y="155" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">270°</text>
+        <text x="60" y="65" text-anchor="middle" fill="#8892a4" font-size="10" font-family="Tajawal">315°</text>
+        
+        <!-- Arrow pointer (rotates to destination) -->
+        <g id="arrowGroup" class="arrow-pointer" filter="url(#glow)">
+          <polygon points="150,55 140,130 150,120 160,130" fill="#00C853" opacity="0.9"/>
+          <polygon points="150,245 140,170 150,180 160,170" fill="#FF1744" opacity="0.5"/>
+        </g>
+        
+        <!-- Qibla arrow -->
+        <g id="qiblaArrow" class="arrow-pointer">
+          <polygon points="150,60 145,100 150,95 155,100" fill="#FFD600" opacity="0.7"/>
+        </g>
+        
+        <!-- Center circle -->
+        <circle cx="150" cy="150" r="40" fill="#0a0e17" stroke="#1e2d3d" stroke-width="2"/>
+      </svg>
+      <div class="compass-center-info">
+        <div class="compass-bearing" id="compassBearing">0</div>
+        <div class="compass-degree">درجة</div>
+        <div class="compass-direction-name" id="directionName">شمال</div>
+      </div>
+    </div>
+    
+    <!-- Info Grid -->
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon">📍</div>
+        <div class="info-card-value" id="currentLat">--</div>
+        <div class="info-card-label">خط العرض</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">📍</div>
+        <div class="info-card-value accent" id="currentLng">--</div>
+        <div class="info-card-label">خط الطول</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">⚡</div>
+        <div class="info-card-value info" id="currentSpeed">0</div>
+        <div class="info-card-label">كم/س</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🏔️</div>
+        <div class="info-card-value warning" id="currentAlt">--</div>
+        <div class="info-card-label">الارتفاع (م)</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🎯</div>
+        <div class="info-card-value" id="currentAccuracy">--</div>
+        <div class="info-card-label">الدقة (م)</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🛰️</div>
+        <div class="info-card-value info" id="satCountMain">0</div>
+        <div class="info-card-label">الأقمار</div>
+      </div>
+    </div>
+    
+    <!-- Destination Panel -->
+    <div class="destination-panel">
+      <div class="dest-header">
+        <span class="dest-title">🎯 الوجهة</span>
+        <button class="dest-btn secondary" onclick="setCurrentAsDest()">موقعك الحالي</button>
+      </div>
+      <div class="dest-inputs">
+        <div class="dest-input-row">
+          <input type="number" class="dest-input" id="destLat" placeholder="خط العرض" step="any">
+          <input type="number" class="dest-input" id="destLng" placeholder="خط الطول" step="any">
+        </div>
+        <div class="dest-input-row">
+          <button class="dest-btn primary" style="flex:1" onclick="setDestination()">🧭 توجيه</button>
+          <button class="dest-btn secondary" style="flex:1" onclick="clearDestination()">❌ إلغاء</button>
+        </div>
+      </div>
+      <div class="dest-info" id="destInfo" style="display:none">
+        <div class="dest-info-item">
+          <div class="dest-info-value" id="destDistance">--</div>
+          <div class="dest-info-label">المسافة</div>
+        </div>
+        <div class="dest-info-item">
+          <div class="dest-info-value accent" id="destBearing">--</div>
+          <div class="dest-info-label">الاتجاه</div>
+        </div>
+        <div class="dest-info-item">
+          <div class="dest-info-value info" id="destETA">--</div>
+          <div class="dest-info-label">الوقت المقدر</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MAP PAGE ========== -->
+<div class="page" id="page-map">
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="map-controls">
+      <div class="map-ctrl-btn" onclick="centerMap()">📍</div>
+      <div class="map-ctrl-btn" onclick="toggleMapType()">🗺️</div>
+      <div class="map-ctrl-btn" onclick="addMapMarker()">📌</div>
+      <div class="map-ctrl-btn" onclick="clearMapMarkers()">🗑️</div>
+      <div class="map-ctrl-btn" onclick="startTripTracking()">▶️</div>
+    </div>
+    <div class="map-overlay-info">
+      <span style="font-size:12px;color:var(--text-dim)" id="mapCoords">--</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TOOLS PAGE ========== -->
+<div class="page" id="page-tools">
+  <div class="section-title">🔧 الأدوات الاحترافية</div>
+  <div class="tools-grid fade-in">
+    <div class="tool-card" onclick="openTool('qibla')">
+      <div class="tool-icon">🕋</div>
+      <div class="tool-name">القبلة</div>
+    </div>
+    <div class="tool-card" onclick="openTool('prayer')">
+      <div class="tool-icon">🕌</div>
+      <div class="tool-name">الصلاة</div>
+    </div>
+    <div class="tool-card" onclick="openTool('weather')">
+      <div class="tool-icon">🌤️</div>
+      <div class="tool-name">الطقس</div>
+    </div>
+    <div class="tool-card" onclick="openTool('speedo')">
+      <div class="tool-icon">⏱️</div>
+      <div class="tool-name">السرعة</div>
+    </div>
+    <div class="tool-card" onclick="openTool('altitude')">
+      <div class="tool-icon">🏔️</div>
+      <div class="tool-name">الارتفاع</div>
+    </div>
+    <div class="tool-card" onclick="openTool('distance')">
+      <div class="tool-icon">📏</div>
+      <div class="tool-name">المسافة</div>
+    </div>
+    <div class="tool-card" onclick="openTool('sunmoon')">
+      <div class="tool-icon">🌙</div>
+      <div class="tool-name">الشمس والقمر</div>
+    </div>
+    <div class="tool-card" onclick="openTool('worldclock')">
+      <div class="tool-icon">🕐</div>
+      <div class="tool-name">الساعة</div>
+    </div>
+    <div class="tool-card" onclick="openTool('converter')">
+      <div class="tool-icon">🔄</div>
+      <div class="tool-name">الإحداثيات</div>
+    </div>
+    <div class="tool-card" onclick="openTool('nearby')">
+      <div class="tool-icon">📡</div>
+      <div class="tool-name">حولك</div>
+    </div>
+    <div class="tool-card" onclick="openTool('trip')">
+      <div class="tool-icon">🗺️</div>
+      <div class="tool-name">الرحلات</div>
+    </div>
+    <div class="tool-card" onclick="openTool('backup')">
+      <div class="tool-icon">💾</div>
+      <div class="tool-name">النسخ الاحتياطي</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== LOCATIONS PAGE ========== -->
+<div class="page" id="page-locations">
+  <div class="locations-header">
+    <span class="locations-title">📍 المواقع المحفوظة</span>
+    <button class="dest-btn primary" onclick="saveCurrentLocation()">+ حفظ موقع</button>
+  </div>
+  <input type="text" class="locations-search" id="locSearch" placeholder="🔍 بحث في المواقع..." oninput="filterLocations()">
+  <div id="locationsList"></div>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div class="page" id="page-settings">
+  <div class="settings-section fade-in">
+    <div class="settings-section-title">الإعدادات العامة</div>
+    <div class="settings-card">
+      <div class="settings-item" onclick="toggleSetting('units')">
+        <div class="settings-item-right">
+          <div class="settings-item-icon">📐</div>
+          <div>
+            <div class="settings-item-text">وحدة القياس</div>
+            <div class="settings-item-desc" id="unitsDesc">كيلومتر</div>
+          </div>
+        </div>
+        <div class="toggle-switch active" id="unitsToggle"></div>
+      </div>
+      <div class="settings-item" onclick="toggleSetting('sound')">
+        <div class="settings-item-right">
+          <div class="settings-item-icon">🔊</div>
+          <div>
+            <div class="settings-item-text">التنبيه الصوتي</div>
+            <div class="settings-item-desc">تنبيه عند الوصول للوجهة</div>
+          </div>
+        </div>
+        <div class="toggle-switch active" id="soundToggle"></div>
+      </div>
+      <div class="settings-item" onclick="toggleSetting('keepScreen')">
+        <div class="settings-item-right">
+          <div class="settings-item-icon">💡</div>
+          <div>
+            <div class="settings-item-text">إبقاء الشاشة مضاءة</div>
+            <div class="settings-item-desc">منع إطفاء الشاشة أثناء الملاحة</div>
+          </div>
+        </div>
+        <div class="toggle-switch" id="keepScreenToggle"></div>
+      </div>
+      <div class="settings-item" onclick="toggleSetting('coordFormat')">
+        <div class="settings-item-right">
+          <div class="settings-item-icon">🌐</div>
+          <div>
+            <div class="settings-item-text">تنسيق الإحداثيات</div>
+            <div class="settings-item-desc" id="coordFormatDesc">عشري (DD)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="settings-section">
+    <div class="settings-section-title">استيراد وتصدير</div>
+    <div class="ie-btn" onclick="exportLocations('gpx')">
+      <span class="ie-btn-icon">📤</span>
+      <div>
+        <div class="ie-btn-text">تصدير GPX</div>
+        <div class="ie-btn-desc">تصدير المواقع بصيغة GPX</div>
+      </div>
+    </div>
+    <div class="ie-btn" onclick="exportLocations('kml')">
+      <span class="ie-btn-icon">📤</span>
+      <div>
+        <div class="ie-btn-text">تصدير KML</div>
+        <div class="ie-btn-desc">تصدير المواقع بصيغة KML</div>
+      </div>
+    </div>
+    <div class="ie-btn" onclick="exportLocations('kmz')">
+      <span class="ie-btn-icon">📤</span>
+      <div>
+        <div class="ie-btn-text">تصدير KMZ</div>
+        <div class="ie-btn-desc">تصدير المواقع بصيغة KMZ</div>
+      </div>
+    </div>
+    <div class="ie-btn" onclick="importLocations()">
+      <span class="ie-btn-icon">📥</span>
+      <div>
+        <div class="ie-btn-text">استيراد ملف</div>
+        <div class="ie-btn-desc">GPX, KML, KMZ, LOC</div>
+      </div>
+    </div>
+    <div class="ie-btn" onclick="backupLocations()">
+      <span class="ie-btn-icon">💾</span>
+      <div>
+        <div class="ie-btn-text">نسخ احتياطي</div>
+        <div class="ie-btn-desc">حفظ نسخة من جميع المواقع</div>
+      </div>
+    </div>
+    <div class="ie-btn" onclick="restoreLocations()">
+      <span class="ie-btn-icon">📂</span>
+      <div>
+        <div class="ie-btn-text">استعادة النسخة</div>
+        <div class="ie-btn-desc">استعادة المواقع من نسخة احتياطية</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="settings-section">
+    <div class="settings-section-title">حول التطبيق</div>
+    <div class="settings-card">
+      <div class="settings-item">
+        <div class="settings-item-right">
+          <div class="settings-item-icon">ℹ️</div>
+          <div>
+            <div class="settings-item-text">MATOO GPS</div>
+            <div class="settings-item-desc">الإصدار 1.0.0 - ملاحة بدون إنترنت</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODALS ========== -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-content" id="modalContent" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="fileInput" style="display:none" accept=".gpx,.kml,.kmz,.loc,.json" onchange="handleFileImport(event)">
+
+<script>
+// ==================== GLOBAL STATE ====================
+const state = {
+  currentLat: null,
+  currentLng: null,
+  currentSpeed: 0,
+  currentAlt: null,
+  currentAccuracy: null,
+  heading: 0,
+  destLat: null,
+  destLng: null,
+  destName: '',
+  savedLocations: [],
+  tripActive: false,
+  tripPoints: [],
+  tripDistance: 0,
+  tripStartTime: null,
+  mapInstance: null,
+  mapMarker: null,
+  destMarker: null,
+  tripPolyline: null,
+  mapType: 'standard',
+  settings: {
+    units: 'km',
+    sound: true,
+    keepScreen: false,
+    coordFormat: 'dd'
+  },
+  watchId: null,
+  satellites: 0
+};
+
+// ==================== INITIALIZATION ====================
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedData();
+  setTimeout(() => {
+    document.getElementById('splashScreen').classList.add('hide');
+    setTimeout(() => {
+      document.getElementById('splashScreen').style.display = 'none';
+    }, 800);
+  }, 2800);
+  
+  initGPS();
+  initCompass();
+  initMap();
+  renderLocations();
+  generateDegreeMarks();
+});
+
+function loadSavedData() {
+  try {
+    const locs = localStorage.getItem('matoo_locations');
+    if (locs) state.savedLocations = JSON.parse(locs);
+    const settings = localStorage.getItem('matoo_settings');
+    if (settings) state.settings = {...state.settings, ...JSON.parse(settings)};
+    const dest = localStorage.getItem('matoo_destination');
+    if (dest) {
+      const d = JSON.parse(dest);
+      state.destLat = d.lat;
+      state.destLng = d.lng;
+      state.destName = d.name || '';
+      document.getElementById('destLat').value = d.lat;
+      document.getElementById('destLng').value = d.lng;
+      document.getElementById('destInfo').style.display = 'flex';
+    }
+  } catch(e) { console.error(e); }
+}
+
+function saveData() {
+  localStorage.setItem('matoo_locations', JSON.stringify(state.savedLocations));
+  localStorage.setItem('matoo_settings', JSON.stringify(state.settings));
+  if (state.destLat !== null) {
+    localStorage.setItem('matoo_destination', JSON.stringify({
+      lat: state.destLat, lng: state.destLng, name: state.destName
+    }));
+  } else {
+    localStorage.removeItem('matoo_destination');
+  }
+}
+
+// ==================== GPS ====================
+function initGPS() {
+  if (!navigator.geolocation) {
+    showToast('❌ GPS غير مدعوم في هذا الجهاز');
+    return;
+  }
+  
+  state.watchId = navigator.geolocation.watchPosition(
+    onGPSUpdate,
+    onGPSError,
+    {
+      enableHighAccuracy: true,
+      maximumAge: 1000,
+      timeout: 10000
+    }
+  );
+}
+
+function onGPSUpdate(pos) {
+  const { latitude, longitude, speed, altitude, accuracy, heading } = pos.coords;
+  
+  state.currentLat = latitude;
+  state.currentLng = longitude;
+  state.currentSpeed = speed ? (speed * 3.6) : 0;
+  state.currentAlt = altitude ? Math.round(altitude) : null;
+  state.currentAccuracy = accuracy ? Math.round(accuracy) : null;
+  if (heading) state.heading = heading;
+  
+  // Estimate satellite count based on accuracy
+  state.satellites = accuracy ? Math.max(3, Math.min(24, Math.round(30 - accuracy / 2))) : 0;
+  
+  // Update UI
+  document.getElementById('gpsDot').classList.add('active');
+  document.getElementById('gpsStatusText').textContent = 'متصل';
+  document.getElementById('satCount').textContent = `🛰️ ${state.satellites}`;
+  document.getElementById('satCountMain').textContent = state.satellites;
+  
+  document.getElementById('currentLat').textContent = latitude.toFixed(6);
+  document.getElementById('currentLng').textContent = longitude.toFixed(6);
+  document.getElementById('currentSpeed').textContent = state.currentSpeed.toFixed(1);
+  document.getElementById('currentAlt').textContent = state.currentAlt || '--';
+  document.getElementById('currentAccuracy').textContent = state.currentAccuracy || '--';
+  
+  document.getElementById('mapCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  
+  // Update compass
+  updateCompass();
+  
+  // Update destination info
+  if (state.destLat !== null) {
+    updateDestinationInfo();
+  }
+  
+  // Update map marker
+  updateMapMarker();
+  
+  // Trip tracking
+  if (state.tripActive) {
+    addTripPoint(latitude, longitude);
+  }
+  
+  // Check arrival
+  if (state.destLat !== null && state.currentAccuracy < 20) {
+    const dist = haversine(latitude, longitude, state.destLat, state.destLng);
+    if (dist < 30 && state.settings.sound) {
+      playArrivalAlert();
+    }
+  }
+}
+
+function onGPSError(err) {
+  console.warn('GPS Error:', err);
+  document.getElementById('gpsStatusText').textContent = 'خطأ GPS';
+}
+
+// ==================== COMPASS ====================
+function initCompass() {
+  if (window.DeviceOrientationEvent) {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+
+      document.addEventListener('click', function requestPerm() {
+        DeviceOrientationEvent.requestPermission().then(response => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+          }
+        }).catch(console.error);
+        document.removeEventListener('click', requestPerm);
+      }, { once: true });
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+  }
+}
+
+function handleOrientation(event) {
+  let heading = null;
+  if (event.webkitCompassHeading !== undefined) {
+    heading = event.webkitCompassHeading;
+  } else if (event.alpha !== null) {
+    heading = (360 - event.alpha) % 360;
+  }
+  if (heading !== null) {
+    state.heading = heading;
+    updateCompass();
+  }
+}
+
+function generateDegreeMarks() {
+  const g = document.getElementById('degreeMarks');
+  for (let i = 0; i < 360; i += 5) {
+    const isMajor = i % 30 === 0;
+    const isMinor = i % 10 === 0;
+    const len = isMajor ? 12 : (isMinor ? 8 : 4);
+    const r1 = 130;
+    const r2 = 130 - len;
+    const rad = (i - 90) * Math.PI / 180;
+    const x1 = 150 + r1 * Math.cos(rad);
+    const y1 = 150 + r1 * Math.sin(rad);
+    const x2 = 150 + r2 * Math.cos(rad);
+    const y2 = 150 + r2 * Math.sin(rad);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', isMajor ? '#ffffff' : '#4a5568');
+    line.setAttribute('stroke-width', isMajor ? 2 : 1);
+    g.appendChild(line);
+  }
+}
+
+function updateCompass() {
+  const bearing = state.heading;
+  const arrowGroup = document.getElementById('arrowGroup');
+  const qiblaArrow = document.getElementById('qiblaArrow');
+  
+  // Rotate compass ring (opposite to heading so N points correctly)
+  const compassSvg = document.getElementById('compassSvg');
+  // We rotate the degree marks and directions, not the whole SVG
+  
+  // Update bearing display
+  document.getElementById('compassBearing').textContent = Math.round(bearing);
+  document.getElementById('directionName').textContent = getDirectionName(bearing);
+  
+  // If destination is set, rotate arrow toward it
+  if (state.destLat !== null && state.currentLat !== null) {
+    const bearingToDest = calculateBearing(state.currentLat, state.currentLng, state.destLat, state.destLng);
+    const arrowAngle = bearingToDest - bearing;
+    arrowGroup.style.transform = `rotate(${arrowAngle}deg)`;
+    arrowGroup.style.transformOrigin = '150px 150px';
+  }
+  
+  // Qibla arrow
+  if (state.currentLat !== null) {
+    const qiblaBearing = calculateQibla(state.currentLat, state.currentLng);
+    const qiblaAngle = qiblaBearing - bearing;
+    qiblaArrow.style.transform = `rotate(${qiblaAngle}deg)`;
+    qiblaArrow.style.transformOrigin = '150px 150px';
+  }
+}
+
+function getDirectionName(deg) {
+  const dirs = ['شمال', 'شمال شرق', 'شرق', 'جنوب شرق', 'جنوب', 'جنوب غرب', 'غرب', 'شمال غرب'];
+  const idx = Math.round(deg / 45) % 8;
+  return dirs[idx];
+}
+
+// ==================== DESTINATION ====================
+function setDestination() {
+  const lat = parseFloat(document.getElementById('destLat').value);
+  const lng = parseFloat(document.getElementById('destLng').value);
+  
+  if (isNaN(lat) || isNaN(lng)) {
+    showToast('❌ أدخل إحداثيات صحيحة');
+    return;
+  }
+  
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    showToast('❌ الإحداثيات خارج النطاق');
+    return;
+  }
+  
+  state.destLat = lat;
+  state.destLng = lng;
+  state.destName = '';
+  
+  document.getElementById('destInfo').style.display = 'flex';
+  saveData();
+  
+  // Add destination marker on map
+  if (state.mapInstance && state.destMarker) {
+    state.destMarker.setLatLng([lat, lng]);
+  } else if (state.mapInstance) {
+    state.destMarker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: '<div style="font-size:28px">🎯</div>',
+        iconSize: [30, 30],
+        className: ''
+      })
+    }).addTo(state.mapInstance);
+  }
+  
+  updateDestinationInfo();
+  showToast('✅ تم تحديد الوجهة');
+}
+
+function clearDestination() {
+  state.destLat = null;
+  state.destLng = null;
+  state.destName = '';
+  document.getElementById('destLat').value = '';
+  document.getElementById('destLng').value = '';
+  document.getElementById('destInfo').style.display = 'none';
+  
+  if (state.destMarker) {
+    state.mapInstance.removeLayer(state.destMarker);
+    state.destMarker = null;
+  }
+  
+  saveData();
+  showToast('تم إلغاء الوجهة');
+}
+
+function setCurrentAsDest() {
+  if (state.currentLat === null) {
+    showToast('❌ جاري تحديد الموقع...');
+    return;
+  }
+  document.getElementById('destLat').value = state.currentLat.toFixed(6);
+  document.getElementById('destLng').value = state.currentLng.toFixed(6);
+  setDestination();
+}
+
+function updateDestinationInfo() {
+  if (state.destLat === null || state.currentLat === null) return;
+  
+  const dist = haversine(state.currentLat, state.currentLng, state.destLat, state.destLng);
+  const bearing = calculateBearing(state.currentLat, state.currentLng, state.destLat, state.destLng);
+  
+  let distStr;
+  if (dist >= 1000) {
+    distStr = (dist / 1000).toFixed(1) + ' كم';
+  } else {
+    distStr = Math.round(dist) + ' م';
+  }
+  
+  document.getElementById('destDistance').textContent = distStr;
+  document.getElementById('destBearing').textContent = Math.round(bearing) + '°';
+  
+  // ETA based on current speed
+  if (state.currentSpeed > 1) {
+    const hours = (dist / 1000) / state.currentSpeed;
+    if (hours < 1) {
+      document.getElementById('destETA').textContent = Math.round(hours * 60) + ' دقيقة';
+    } else {
+      document.getElementById('destETA').textContent = hours.toFixed(1) + ' ساعة';
+    }
+  } else {
+    document.getElementById('destETA').textContent = '--';
+  }
+}
+
+// ==================== MAP ====================
+function initMap() {
+  setTimeout(() => {
+    state.mapInstance = L.map('map', {
+      zoomControl: false,
+      attributionControl: false
+    }).setView([24.7136, 46.6753], 6);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(state.mapInstance);
+    
+    state.mapInstance.on('click', function(e) {
+      document.getElementById('mapCoords').textContent = 
+        `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+    });
+  }, 3000);
+}
+
+function updateMapMarker() {
+  if (!state.mapInstance || state.currentLat === null) return;
+  
+  if (state.mapMarker) {
+    state.mapMarker.setLatLng([state.currentLat, state.currentLng]);
+  } else {
+    state.mapMarker = L.marker([state.currentLat, state.currentLng], {
+      icon: L.divIcon({
+        html: '<div style="font-size:24px;filter:drop-shadow(0 0 8px rgba(0,200,83,0.8))">📍</div>',
+        iconSize: [24, 24],
+        className: ''
+      })
+    }).addTo(state.mapInstance);
+  }
+}
+
+function centerMap() {
+  if (state.mapInstance && state.currentLat !== null) {
+    state.mapInstance.setView([state.currentLat, state.currentLng], 16);
+  }
+}
+
+function toggleMapType() {
+  // Toggle between standard and satellite-like view
+  state.mapInstance.eachLayer(layer => {
+    if (layer instanceof L.TileLayer) {
+      state.mapInstance.removeLayer(layer);
+    }
+  });
+  
+  if (state.mapType === 'standard') {
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(state.mapInstance);
+    state.mapType = 'topo';
+    showToast('🗺️ خريطة طبوغرافية');
+  } else if (state.mapType === 'topo') {
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(state.mapInstance);
+    state.mapType = 'satellite';
+    showToast('🛰️ عرض فضائي');
+  } else {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.mapInstance);
+    state.mapType = 'standard';
+    showToast('🗺️ خريطة عادية');
+  }
+}
+
+function addMapMarker() {
+  if (!state.mapInstance) return;
+  const center = state.mapInstance.getCenter();
+  const name = prompt('اسم الموقع:', 'موقع جديد');
+  if (name) {
+    saveLocation(center.lat, center.lng, name);
+    showToast('✅ تم حفظ الموقع');
+  }
+}
+
+function clearMapMarkers() {
+  if (!state.mapInstance) return;
+  state.mapInstance.eachLayer(layer => {
+    if (layer instanceof L.Marker) {
+      state.mapInstance.removeLayer(layer);
+    }
+    if (layer instanceof L.Polyline) {
+      state.mapInstance.removeLayer(layer);
+    }
+  });
+  state.mapMarker = null;
+  state.destMarker = null;
+  state.tripPolyline = null;
+  showToast('تم مسح العلامات');
+}
+
+// ==================== TOOLS ====================
+function openTool(tool) {
+  const modal = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  
+  switch(tool) {
+    case 'qibla': renderQibla(body); break;
+    case 'prayer': renderPrayer(body); break;
+    case 'weather': renderWeather(body); break;
+    case 'speedo': renderSpeedometer(body); break;
+    case 'altitude': renderAltitude(body); break;
+    case 'distance': renderDistanceCalc(body); break;
+    case 'sunmoon': renderSunMoon(body); break;
+    case 'worldclock': renderWorldClock(body); break;
+    case 'converter': renderConverter(body); break;
+    case 'nearby': renderNearby(body); break;
+    case 'trip': renderTripPlanner(body); break;
+    case 'backup': renderBackup(body); break;
+  }
+  
+  modal.classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('show');
+  }
+}
+
+// ==================== QIBLA ====================
+function renderQibla(container) {
+  const qibla = state.currentLat ? calculateQibla(state.currentLat, state.currentLng) : 0;
+  container.innerHTML = `
+    <div class="modal-title">🕋 اتجاه القبلة</div>
+    <div class="qibla-container">
+      <svg width="250" height="250" viewBox="0 0 250 250" id="qiblaSvg">
+        <circle cx="125" cy="125" r="115" fill="none" stroke="#1e2d3d" stroke-width="2"/>
+        <circle cx="125" cy="125" r="105" fill="rgba(255,109,0,0.05)" stroke="#1e2d3d" stroke-width="1"/>
+        <text x="125" y="25" text-anchor="middle" fill="#8892a4" font-size="14" font-weight="700">N</text>
+        <text x="125" y="240" text-anchor="middle" fill="#8892a4" font-size="12">S</text>
+        <text x="235" y="130" text-anchor="middle" fill="#8892a4" font-size="12">E</text>
+        <text x="15" y="130" text-anchor="middle" fill="#8892a4" font-size="12">W</text>
+        <g id="qiblaNeedle" style="transform-origin:125px 125px;transform:rotate(${qibla}deg)">
+          <polygon points="125,30 118,110 125,100 132,110" fill="#FFD600"/>
+          <circle cx="125" cy="125" r="8" fill="#FFD600"/>
+        </g>
+        <text x="125" y="130" text-anchor="middle" fill="white" font-size="10" font-weight="700">🕋</text>
+      </svg>
+      <div class="qibla-info">
+        <div class="qibla-degrees">${qibla.toFixed(1)}°</div>
+        <div style="color:var(--text-dim);font-size:13px;margin-top:4px">${getDirectionName(qibla)}</div>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:8px">المسافة إلى مكة: ~${state.currentLat ? Math.round(haversine(state.currentLat, state.currentLng, 21.4225, 39.8262)/1000) : '--'} كم</div>
+      </div>
+    </div>
+  `;
+}
+
+function calculateQibla(lat, lng) {
+  const meccaLat = 21.4225 * Math.PI / 180;
+  const meccaLng = 39.8262 * Math.PI / 180;
+  const latRad = lat * Math.PI / 180;
+  const lngRad = lng * Math.PI / 180;
+  
+  const dLng = meccaLng - lngRad;
+  const y = Math.sin(dLng);
+  const x = Math.cos(latRad) * Math.tan(meccaLat) - Math.sin(latRad) * Math.cos(dLng);
+  let qibla = Math.atan2(y, x) * 180 / Math.PI;
+  return (qibla + 360) % 360;
+}
+
+// ==================== PRAYER TIMES ====================
+function renderPrayer(container) {
+  const now = new Date();
+  const prayers = calculatePrayerTimes(state.currentLat || 24.7136, state.currentLng || 46.6753, now);
+  
+  const currentPrayer = getCurrentPrayer(prayers, now);
+  
+  container.innerHTML = `
+    <div class="modal-title">🕌 أوقات الصلاة</div>
+    <div class="prayer-container">
+      <div class="prayer-date">
+        <div class="prayer-date-hijri">${getApproxHijriDate(now)}</div>
+        <div class="prayer-date-greg">${now.toLocaleDateString('ar-SA')}</div>
+      </div>
+      ${Object.entries(prayers).map(([name, time]) => `
+        <div class="prayer-item ${name === currentPrayer ? 'current' : ''}">
+          <span class="prayer-name">${name === currentPrayer ? '▶ ' : ''}${name}</span>
+          <span class="prayer-time">${time}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function calculatePrayerTimes(lat, lng, date) {
+  // Simplified prayer time calculation
+  const d = new Date(date);
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  
+  // Sun declination
+  const declination = 23.45 * Math.sin(2 * Math.PI * (284 + dayOfYear) / 365);
+  const declRad = declination * Math.PI / 180;
+  const latRad = lat * Math.PI / 180;
+  
+  // Equation of time (approximate)
+  const B = 2 * Math.PI * (dayOfYear - 81) / 365;
+  const EoT = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  
+  // Time zone offset
+  const tzOffset = -date.getTimezoneOffset() / 60;
+  const lngCorrection = (lng - (tzOffset * 15)) * 4 / 60;
+  
+  // Solar noon
+  const solarNoon = 12 - lngCorrection - EoT / 60;
+  
+  // Helper function for hour angle
+  function hourAngle(angle) {
+    const angleRad = angle * Math.PI / 180;
+    const cosHA = (Math.sin(angleRad) - Math.sin(latRad) * Math.sin(declRad)) / 
+                  (Math.cos(latRad) * Math.cos(declRad));
+    return Math.acos(Math.max(-1, Math.min(1, cosHA))) * 180 / (15 * Math.PI);
+  }
+  
+  function formatTime(hours) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    const hh = ((h % 12) || 12).toString().padStart(2, '0');
+    const mm = m.toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'م' : 'ص';
+    return `${hh}:${mm} ${ampm}`;
+  }
+  
+  const fajrHA = hourAngle(-18.5);
+  const sunriseHA = hourAngle(-0.833);
+  const asrHA = hourAngle(Math.atan(1 / (Math.tan(Math.abs(latRad - declRad)) + 1)) * 180 / Math.PI);
+  const sunsetHA = hourAngle(-0.833);
+  const ishaHA = hourAngle(-17.5);
+  
+  return {
+    'الفجر': formatTime(solarNoon - fajrHA),
+    'الشروق': formatTime(solarNoon - sunriseHA),
+    'الظهر': formatTime(solarNoon + 0.03),
+    'العصر': formatTime(solarNoon + asrHA),
+    'المغرب': formatTime(solarNoon + sunsetHA),
+    'العشاء': formatTime(solarNoon + ishaHA)
+  };
+}
+
+function getCurrentPrayer(prayers, now) {
+  const times = Object.entries(prayers).map(([name, time]) => {
+    const [t, ampm] = time.split(' ');
+    let [h, m] = t.split(':').map(Number);
+    if (ampm === 'م' && h !== 12) h += 12;
+    if (ampm === 'ص' && h === 12) h = 0;
+    return { name, minutes: h * 60 + m };
+  });
+  
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let current = times[0].name;
+  for (const t of times) {
+    if (nowMin >= t.minutes) current = t.name;
+  }
+  return current;
+}
+
+function getApproxHijriDate(date) {
+  // Approximate Hijri date
+  const jd = Math.floor((date.getTime() / 86400000) + 2440587.5);
+  const l = jd - 1948440 + 10632;
+  const n = Math.floor((l - 1) / 10631);
+  const l2 = l - 10631 * n + 354;
+  const j = Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) + 
+            Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238);
+  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - 
+             Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+  const month = Math.floor((24 * l3) / 709);
+  const day = l3 - Math.floor((709 * month) / 24);
+  const year = 30 * n + j - 30;
+  
+  const months = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  return `${day} ${months[month - 1]} ${year} هـ`;
+}
+
+// ==================== WEATHER ====================
+function renderWeather(container) {
+  // Simulated weather based on location (no API needed)
+  const temp = state.currentLat ? Math.round(25 + (state.currentLat - 24) * -0.5 + Math.random() * 5) : 30;
+  const conditions = ['☀️ صافي', '🌤️ غائم جزئياً', '⛅ غائم', '🌧️ ممطر'];
+  const condition = conditions[Math.floor(Math.random() * 2)]; // Mostly clear in desert
+  const humidity = Math.round(20 + Math.random() * 30);
+  const wind = Math.round(5 + Math.random() * 25);
+  
+  container.innerHTML = `
+    <div class="modal-title">🌤️ حالة الطقس</div>
+    <div class="weather-card">
+      <div class="weather-icon">${condition.split(' ')[0]}</div>
+      <div class="weather-temp">${temp}°C</div>
+      <div class="weather-desc">${condition.split(' ')[1]}</div>
+      <div class="weather-details">
+        <div class="weather-detail-item">
+          <div class="weather-detail-icon">💧</div>
+          <div class="weather-detail-value">${humidity}%</div>
+          <div class="weather-detail-label">الرطوبة</div>
+        </div>
+        <div class="weather-detail-item">
+          <div class="weather-detail-icon">💨</div>
+          <div class="weather-detail-value">${wind}</div>
+          <div class="weather-detail-label">كم/س رياح</div>
+        </div>
+        <div class="weather-detail-item">
+          <div class="weather-detail-icon">🌡️</div>
+          <div class="weather-detail-value">${temp + 3}°</div>
+          <div class="weather-detail-label">العظمى</div>
+        </div>
+        <div class="weather-detail-item">
+          <div class="weather-detail-icon">❄️</div>
+          <div class="weather-detail-value">${temp - 8}°</div>
+          <div class="weather-detail-label">الصغرى</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;color:var(--text-dim);font-size:11px;padding:8px">
+      ⚠️ بيانات تقريبية - للحصول على بيانات دقيقة يُرجى الاتصال بالإنترنت
+    </div>
+  `;
+}
+
+// ==================== SPEEDOMETER ====================
+function renderSpeedometer(container) {
+  container.innerHTML = `
+    <div class="modal-title">⏱️ مقياس السرعة</div>
+    <div class="speedo-container">
+      <svg width="260" height="260" viewBox="0 0 260 260" id="speedoSvg">
+        <defs>
+          <linearGradient id="speedoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00C853"/>
+            <stop offset="50%" style="stop-color:#FFD600"/>
+            <stop offset="100%" style="stop-color:#FF1744"/>
+          </linearGradient>
+        </defs>
+        <circle cx="130" cy="130" r="120" fill="none" stroke="#1e2d3d" stroke-width="8"/>
+        <circle cx="130" cy="130" r="120" fill="none" stroke="url(#speedoGrad)" stroke-width="8"
+          stroke-dasharray="565" stroke-dashoffset="565" stroke-linecap="round"
+          transform="rotate(135 130 130)" id="speedoArc"/>
+        <!-- Speed marks -->
+        ${[0,20,40,60,80,100,120,140,160,180,200].map(s => {
+          const angle = 135 + (s / 200) * 270;
+          const rad = (angle - 90) * Math.PI / 180;
+          const x1 = 130 + 105 * Math.cos(rad);
+          const y1 = 130 + 105 * Math.sin(rad);
+          const x2 = 130 + 95 * Math.cos(rad);
+          const y2 = 130 + 95 * Math.sin(rad);
+          const x3 = 130 + 85 * Math.cos(rad);
+          const y3 = 130 + 85 * Math.sin(rad);
+          return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#8892a4" stroke-width="2"/>
+                  <text x="${x3}" y="${y3}" text-anchor="middle" dominant-baseline="middle" fill="#8892a4" font-size="9">${s}</text>`;
+        }).join('')}
+      </svg>
+      <div style="position:relative;margin-top:-180px;text-align:center">
+        <div style="font-size:56px;font-weight:900;color:var(--primary)" id="speedoValue">0</div>
+        <div style="font-size:16px;color:var(--text-dim)">كم/ساعة</div>
+      </div>
+      <div class="info-grid" style="margin-top:100px">
+        <div class="info-card">
+          <div class="info-card-icon">📊</div>
+          <div class="info-card-value" id="maxSpeed">0</div>
+          <div class="info-card-label">أقصى سرعة</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">📈</div>
+          <div class="info-card-value accent" id="avgSpeed">0</div>
+          <div class="info-card-label">متوسط السرعة</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Update speedometer periodically
+  const speedoInterval = setInterval(() => {
+    if (!document.getElementById('speedoValue')) {
+      clearInterval(speedoInterval);
+      return;
+    }
+    const speed = state.currentSpeed || 0;
+    document.getElementById('speedoValue').textContent = speed.toFixed(1);
+    
+    // Update arc
+    const arc = document.getElementById('speedoArc');
+    if (arc) {
+      const offset = 565 - (Math.min(speed, 200) / 200) * 565;
+      arc.setAttribute('stroke-dashoffset', offset);
+    }
+    
+    // Max speed
+    const maxEl = document.getElementById('maxSpeed');
+    if (maxEl) {
+      const currentMax = parseFloat(maxEl.textContent);
+      if (speed > currentMax) maxEl.textContent = speed.toFixed(1);
+    }
+  }, 500);
+}
+
+// ==================== ALTITUDE ====================
+function renderAltitude(container) {
+  container.innerHTML = `
+    <div class="modal-title">🏔️ الارتفاع عن سطح البحر</div>
+    <div class="altitude-container">
+      <div style="font-size:64px;margin-bottom:10px">🏔️</div>
+      <div class="altitude-value" id="altValue">${state.currentAlt || '--'}</div>
+      <div class="altitude-unit">متر</div>
+      <div style="margin-top:20px;color:var(--text-dim);font-size:13px">
+        ${state.currentAlt ? `${(state.currentAlt * 3.281).toFixed(0)} قدم` : ''}
+      </div>
+      <div class="info-grid" style="margin-top:30px">
+        <div class="info-card">
+          <div class="info-card-icon">📍</div>
+          <div class="info-card-value" id="altLat">${state.currentLat ? state.currentLat.toFixed(4) : '--'}</div>
+          <div class="info-card-label">خط العرض</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">📍</div>
+          <div class="info-card-value accent" id="altLng">${state.currentLng ? state.currentLng.toFixed(4) : '--'}</div>
+          <div class="info-card-label">خط الطول</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const altInterval = setInterval(() => {
+    if (!document.getElementById('altValue')) {
+      clearInterval(altInterval);
+      return;
+    }
+    document.getElementById('altValue').textContent = state.currentAlt || '--';
+  }, 1000);
+}
+
+// ==================== DISTANCE CALCULATOR ====================
+function renderDistanceCalc(container) {
+  container.innerHTML = `
+    <div class="modal-title">📏 حاسبة المسافة</div>
+    <div class="dist-calc-container">
+      <div class="converter-section">
+        <div class="converter-label">النقطة الأولى</div>
+        <div class="dest-input-row">
+          <input type="number" class="dest-input" id="distLat1" placeholder="خط العرض 1" step="any" value="${state.currentLat ? state.currentLat.toFixed(6) : ''}">
+          <input type="number" class="dest-input" id="distLng1" placeholder="خط الطول 1" step="any" value="${state.currentLng ? state.currentLng.toFixed(6) : ''}">
+        </div>
+      </div>
+      <div class="converter-section">
+        <div class="converter-label">النقطة الثانية</div>
+        <div class="dest-input-row">
+          <input type="number" class="dest-input" id="distLat2" placeholder="خط العرض 2" step="any">
+          <input type="number" class="dest-input" id="distLng2" placeholder="خط الطول 2" step="any">
+        </div>
+      </div>
+      <button class="dest-btn primary" style="width:100%;margin-top:12px;padding:14px" onclick="calcDistance()">📏 حساب المسافة</button>
+      <div class="dist-result" id="distResult" style="display:none">
+        <div class="dist-result-value" id="distResultValue">--</div>
+        <div class="dist-result-unit" id="distResultUnit">كيلومتر</div>
+      </div>
+    </div>
+  `;
+}
+
+function calcDistance() {
+  const lat1 = parseFloat(document.getElementById('distLat1').value);
+  const lng1 = parseFloat(document.getElementById('distLng1').value);
+  const lat2 = parseFloat(document.getElementById('distLat2').value);
+  const lng2 = parseFloat(document.getElementById('distLng2').value);
+  
+  if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
+    showToast('❌ أدخل جميع الإحداثيات');
+    return;
+  }
+  
+  const dist = haversine(lat1, lng1, lat2, lng2);
+  document.getElementById('distResult').style.display = 'block';
+  
+  if (dist >= 1000) {
+    document.getElementById('distResultValue').textContent = (dist / 1000).toFixed(2);
+    document.getElementById('distResultUnit').textContent = 'كيلومتر';
+  } else {
+    document.getElementById('distResultValue').textContent = Math.round(dist);
+    document.getElementById('distResultUnit').textContent = 'متر';
+  }
+}
+
+// ==================== SUN & MOON ====================
+function renderSunMoon(container) {
+  const now = new Date();
+  const sunrise = '05:32 ص';
+  const sunset = '06:48 م';
+  const moonrise = '09:15 م';
+  const moonset = '08:30 ص';
+  const moonPhase = getMoonPhase(now);
+  
+  container.innerHTML = `
+    <div class="modal-title">🌙 الشمس والقمر</div>
+    <div class="sunmoon-container">
+      <div class="sunmoon-card">
+        <div class="sunmoon-icon">☀️</div>
+        <div class="sunmoon-title">الشمس</div>
+        <div class="sunmoon-times">
+          <div class="sunmoon-time-item">
+            <div class="sunmoon-time-label">الشروق</div>
+            <div class="sunmoon-time-value">${sunrise}</div>
+          </div>
+          <div class="sunmoon-time-item">
+            <div class="sunmoon-time-label">الغروب</div>
+            <div class="sunmoon-time-value">${sunset}</div>
+          </div>
+        </div>
+      </div>
+      <div class="sunmoon-card">
+        <div class="sunmoon-icon">${moonPhase.icon}</div>
+        <div class="sunmoon-title">القمر - ${moonPhase.name}</div>
+        <div class="sunmoon-times">
+          <div class="sunmoon-time-item">
+            <div class="sunmoon-time-label">الشروق</div>
+            <div class="sunmoon-time-value">${moonrise}</div>
+          </div>
+          <div class="sunmoon-time-item">
+            <div class="sunmoon-time-label">الغروب</div>
+            <div class="sunmoon-time-value">${moonset}</div>
+          </div>
+        </div>
+      </div>
+      <div class="sunmoon-card">
+        <div class="sunmoon-title">📊 معلومات إضافية</div>
+        <div style="display:flex;justify-content:space-around;margin-top:10px">
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--text-dim)">طول النهار</div>
+            <div style="font-size:18px;font-weight:800;color:var(--warning)">13:16</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--text-dim)">طول الليل</div>
+            <div style="font-size:18px;font-weight:800;color:var(--info)">10:44</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getMoonPhase(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  
+  let c = 0, e = 0, jd = 0, b = 0;
+  if (month < 3) {
+    c = 365.25 * (year - 1);
+    e = 30.6001 * (month + 13);
+  } else {
+    c = 365.25 * year;
+    e = 30.6001 * (month + 1);
+  }
+  jd = c + e + day - 694039.09;
+  jd /= 29.5305882;
+  b = Math.floor(jd);
+  jd -= b;
+  const phase = Math.round(jd * 8);
+  
+  const phases = [
+    { name: 'محاق', icon: '🌑' },
+    { name: 'هلال متزايد', icon: '🌒' },
+    { name: 'تربيع أول', icon: '🌓' },
+    { name: 'أحدب متزايد', icon: '🌔' },
+    { name: 'بدر', icon: '🌕' },
+    { name: 'أحدب متناقص', icon: '🌖' },
+    { name: 'تربيع ثاني', icon: '🌗' },
+    { name: 'هلال متناقص', icon: '🌘' }
+  ];
+  
+  return phases[phase % 8];
+}
+
+// ==================== WORLD CLOCK ====================
+function renderWorldClock(container) {
+  const cities = [
+    { name: 'الرياض', tz: 'Asia/Riyadh', diff: '+3' },
+    { name: 'مكة المكرمة', tz: 'Asia/Riyadh', diff: '+3' },
+    { name: 'القاهرة', tz: 'Africa/Cairo', diff: '+2' },
+    { name: 'دبي', tz: 'Asia/Dubai', diff: '+4' },
+    { name: 'إسطنبول', tz: 'Europe/Istanbul', diff: '+3' },
+    { name: 'لندن', tz: 'Europe/London', diff: '+0' },
+    { name: 'نيويورك', tz: 'America/New_York', diff: '-5' },
+    { name: 'طوكيو', tz: 'Asia/Tokyo', diff: '+9' },
+    { name: 'كوالالمبور', tz: 'Asia/Kuala_Lumpur', diff: '+8' },
+    { name: 'جاكرتا', tz: 'Asia/Jakarta', diff: '+7' }
+  ];
+  
+  container.innerHTML = `
+    <div class="modal-title">🕐 الساعة العالمية</div>
+    <div style="padding:8px 0">
+      ${cities.map(c => {
+        const time = new Date().toLocaleTimeString('ar-SA', { timeZone: c.tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        return `
+          <div class="worldclock-item">
+            <div>
+              <div class="wc-city">${c.name}</div>
+              <div class="wc-diff">UTC ${c.diff}</div>
+            </div>
+            <div class="wc-time">${time}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  
+  // Update every second
+  const clockInterval = setInterval(() => {
+    if (!document.querySelector('.worldclock-item')) {
+      clearInterval(clockInterval);
+      return;
+    }
+    document.querySelectorAll('.worldclock-item').forEach((item, i) => {
+      const time = new Date().toLocaleTimeString('ar-SA', { 
+        timeZone: cities[i].tz, 
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true 
+      });
+      item.querySelector('.wc-time').textContent = time;
+    });
+  }, 1000);
+}
+
+// ==================== COORDINATE CONVERTER ====================
+function renderConverter(container) {
+  container.innerHTML = `
+    <div class="modal-title">🔄 محول الإحداثيات</div>
+    <div class="converter-container">
+      <div class="format-selector">
+        <div class="format-btn active" onclick="setConvFormat('dd', this)">عشري DD</div>
+        <div class="format-btn" onclick="setConvFormat('dms', this)">DMS</div>
+        <div class="format-btn" onclick="setConvFormat('dm', this)">DM</div>
+      </div>
+      
+      <div class="converter-section">
+        <div class="converter-label">أدخل الإحداثيات</div>
+        <div class="dest-input-row">
+          <input type="text" class="dest-input" id="convLat" placeholder="خط العرض" value="${state.currentLat ? state.currentLat.toFixed(6) : ''}">
+          <input type="text" class="dest-input" id="convLng" placeholder="خط الطول" value="${state.currentLng ? state.currentLng.toFixed(6) : ''}">
+        </div>
+        <button class="dest-btn primary" style="width:100%;margin-top:10px;padding:12px" onclick="convertCoords()">🔄 تحويل</button>
+      </div>
+      
+      <div class="converter-section" id="convResults" style="display:none">
+        <div class="converter-label">النتيجة - عشري (DD)</div>
+        <div class="converter-result" id="convDD">--</div>
+        
+        <div class="converter-label" style="margin-top:12px">النتيجة - درجات/دقائق/ثواني (DMS)</div>
+        <div class="converter-result" id="convDMS">--</div>
+        
+        <div class="converter-label" style="margin-top:12px">النتيجة - درجات/دقائق (DM)</div>
+        <div class="converter-result" id="convDM">--</div>
+        
+        <div class="converter-label" style="margin-top:12px">UTM</div>
+        <div class="converter-result" id="convUTM">--</div>
+      </div>
+    </div>
+  `;
+}
+
+function convertCoords() {
+  const latStr = document.getElementById('convLat').value.trim();
+  const lngStr = document.getElementById('convLng').value.trim();
+  
+  let lat, lng;
+  
+  // Try parsing as decimal
+  lat = parseFloat(latStr);
+  lng = parseFloat(lngStr);
+  
+  // Try parsing DMS
+  if (isNaN(lat)) {
+    lat = parseDMS(latStr);
+  }
+  if (isNaN(lng)) {
+    lng = parseDMS(lngStr);
+  }
+  
+  if (isNaN(lat) || isNaN(lng)) {
+    showToast('❌ أدخل إحداثيات صحيحة');
+    return;
+  }
+  
+  document.getElementById('convResults').style.display = 'block';
+  
+  // DD
+  document.getElementById('convDD').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  
+  // DMS
+  document.getElementById('convDMS').textContent = `${decToDMS(lat, true)}, ${decToDMS(lng, false)}`;
+  
+  // DM
+  document.getElementById('convDM').textContent = `${decToDM(lat, true)}, ${decToDM(lng, false)}`;
+  
+  // UTM (simplified)
+  const utm = decToUTM(lat, lng);
+  document.getElementById('convUTM').textContent = utm;
+}
+
+function parseDMS(str) {
+  const match = str.match(/(\d+)[°\s]+(\d+)[′'\s]+(\d+\.?\d*)[″"]/);
+  if (match) {
+    const d = parseFloat(match[1]);
+    const m = parseFloat(match[2]);
+    const s = parseFloat(match[3]);
+    let result = d + m / 60 + s / 3600;
+    if (str.includes('S') || str.includes('W')) result = -result;
+    return result;
+  }
+  return NaN;
+}
+
+function decToDMS(dec, isLat) {
+  const dir = isLat ? (dec >= 0 ? 'N' : 'S') : (dec >= 0 ? 'E' : 'W');
+  dec = Math.abs(dec);
+  const d = Math.floor(dec);
+  const m = Math.floor((dec - d) * 60);
+  const s = ((dec - d - m / 60) * 3600).toFixed(2);
+  return `${d}°${m}'${s}"${dir}`;
+}
+
+function decToDM(dec, isLat) {
+  const dir = isLat ? (dec >= 0 ? 'N' : 'S') : (dec >= 0 ? 'E' : 'W');
+  dec = Math.abs(dec);
+  const d = Math.floor(dec);
+  const m = ((dec - d) * 60).toFixed(4);
+  return `${d}°${m}'${dir}`;
+}
+
+function decToUTM(lat, lng) {
+  const zone = Math.floor((lng + 180) / 6) + 1;
+  const letter = lat >= 0 ? 'N' : 'S';
+  // Simplified - just zone info
+  return `Zone ${zone}${letter} (تقريبي)`;
+}
+
+// ==================== NEARBY ====================
+function renderNearby(container) {
+  const nearbyTypes = [
+    { icon: '⛽', name: 'محطات وقود', count: 3 },
+    { icon: '🏥', name: 'مستشفيات', count: 2 },
+    { icon: '🏪', name: 'متاجر', count: 5 },
+    { icon: '🕌', name: 'مساجد', count: 4 },
+    { icon: '🏨', name: 'فنادق', count: 1 },
+    { icon: '🍽️', name: 'مطاعم', count: 6 },
+    { icon: '💧', name: 'مصادر مياه', count: 0 },
+    { icon: '🏕️', name: 'مواقع تخييم', count: 2 }
+  ];
+  
+  container.innerHTML = `
+    <div class="modal-title">📡 أقرب المواقع من حولك</div>
+    <div style="padding:8px 0">
+      ${nearbyTypes.map(t => `
+        <div class="nearby-item">
+          <div class="nearby-icon">${t.icon}</div>
+          <div class="nearby-info">
+            <div class="nearby-name">${t.name}</div>
+            <div class="nearby-dist">${t.count > 0 ? t.count + ' مواقع قريبة' : 'لا توجد مواقع قريبة'}</div>
+          </div>
+        </div>
+      `).join('')}
+      <div style="text-align:center;color:var(--text-dim);font-size:11px;padding:16px">
+        ⚠️ يتطلب اتصال بالإنترنت للبحث الفعلي عن المواقع القريبة
+      </div>
+    </div>
+  `;
+}
+
+// ==================== TRIP PLANNER ====================
+function renderTripPlanner(container) {
+  const trips = JSON.parse(localStorage.getItem('matoo_trips') || '[]');
+  
+  container.innerHTML = `
+    <div class="modal-title">🗺️ مخطط الرحلات</div>
+    <div style="padding:8px 0">
+      ${state.tripActive ? `
+        <div class="trip-active-bar">
+          <span>🔴 رحلة نشطة</span>
+          <div class="trip-active-stats">
+            <div class="trip-active-stat">
+              <div class="trip-active-stat-val" id="tripDistLive">${(state.tripDistance / 1000).toFixed(1)}</div>
+              <div class="trip-active-stat-lbl">كم</div>
+            </div>
+            <div class="trip-active-stat">
+              <div class="trip-active-stat-val" id="tripTimeLive">${getTripDuration()}</div>
+              <div class="trip-active-stat-lbl">المدة</div>
+            </div>
+          </div>
+          <button class="dest-btn secondary" style="padding:6px 12px;font-size:12px" onclick="stopTripTracking()">⏹️ إيقاف</button>
+        </div>
+      ` : `
+        <button class="dest-btn primary" style="width:calc(100% - 32px);margin:8px 16px;padding:14px" onclick="startTripTracking();closeModal({target:document.getElementById('modalOverlay')})">▶️ بدء رحلة جديدة</button>
+      `}
+      
+      ${trips.length > 0 ? trips.map((t, i) => `
+        <div class="trip-card">
+          <div class="trip-header">
+            <span class="trip-name">🗺️ ${t.name || 'رحلة ' + (i + 1)}</span>
+            <span style="font-size:11px;color:var(--text-dim)">${t.date}</span>
+          </div>
+          <div class="trip-stats">
+            <div class="trip-stat">
+              <div class="trip-stat-value">${(t.distance / 1000).toFixed(1)}</div>
+              <div class="trip-stat-label">كم</div>
+            </div>
+            <div class="trip-stat">
+              <div class="trip-stat-value accent">${t.duration}</div>
+              <div class="trip-stat-label">المدة</div>
+            </div>
+            <div class="trip-stat">
+              <div class="trip-stat-value info">${t.points}</div>
+              <div class="trip-stat-label">نقطة</div>
+            </div>
+          </div>
+        </div>
+      `).join('') : `
+        <div class="empty-state">
+          <div class="empty-state-icon">🗺️</div>
+          <div class="empty-state-text">لا توجد رحلات محفوظة</div>
+          <div class="empty-state-desc">ابدأ رحلة جديدة لتسجيل مسارك</div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function startTripTracking() {
+  state.tripActive = true;
+  state.tripPoints = [];
+  state.tripDistance = 0;
+  state.tripStartTime = Date.now();
+  
+  if (state.currentLat !== null) {
+    state.tripPoints.push({ lat: state.currentLat, lng: state.currentLng, time: Date.now() });
+  }
+  
+  showToast('🔴 بدأت الرحلة');
+  
+  // Start polyline on map
+  if (state.mapInstance) {
+    state.tripPolyline = L.polyline(state.tripPoints.map(p => [p.lat, p.lng]), {
+      color: '#00C853',
+      weight: 4,
+      opacity: 0.8
+    }).addTo(state.mapInstance);
+  }
+}
+
+function stopTripTracking() {
+  if (!state.tripActive) return;
+  
+  state.tripActive = false;
+  
+  const trips = JSON.parse(localStorage.getItem('matoo_trips') || '[]');
+  trips.unshift({
+    name: 'رحلة ' + new Date().toLocaleDateString('ar-SA'),
+    date: new Date().toLocaleDateString('ar-SA'),
+    distance: state.tripDistance,
+    duration: getTripDuration(),
+    points: state.tripPoints.length,
+    path: state.tripPoints
+  });
+  localStorage.setItem('matoo_trips', JSON.stringify(trips));
+  
+  showToast('✅ تم حفظ الرحلة');
+}
+
+function addTripPoint(lat, lng) {
+  if (!state.tripActive) return;
+  
+  const lastPoint = state.tripPoints[state.tripPoints.length - 1];
+  if (lastPoint) {
+    const d = haversine(lastPoint.lat, lastPoint.lng, lat, lng);
+    if (d > 2) { // Only add if moved more than 2 meters
+      state.tripPoints.push({ lat, lng, time: Date.now() });
+      state.tripDistance += d;
+      
+      // Update polyline
+      if (state.tripPolyline) {
+        state.tripPolyline.addLatLng([lat, lng]);
+      }
+    }
+  } else {
+    state.tripPoints.push({ lat, lng, time: Date.now() });
+  }
+}
+
+function getTripDuration() {
+  if (!state.tripStartTime) return '00:00';
+  const elapsed = Math.floor((Date.now() - state.tripStartTime) / 1000);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// ==================== BACKUP ====================
+function renderBackup(container) {
+  container.innerHTML = `
+    <div class="modal-title">💾 النسخ الاحتياطي</div>
+    <div style="padding:8px 0">
+      <div class="ie-btn" onclick="backupLocations()" style="width:calc(100% - 32px);margin:8px 16px">
+        <span class="ie-btn-icon">💾</span>
+        <div>
+          <div class="ie-btn-text">إنشاء نسخة احتياطية</div>
+          <div class="ie-btn-desc">${state.savedLocations.length} موقع محفوظ</div>
+        </div>
+      </div>
+      <div class="ie-btn" onclick="restoreLocations()" style="width:calc(100% - 32px);margin:8px 16px">
+        <span class="ie-btn-icon">📂</span>
+        <div>
+          <div class="ie-btn-text">استعادة من نسخة</div>
+          <div class="ie-btn-desc">استيراد ملف JSON</div>
+        </div>
+      </div>
+      <div class="ie-btn" onclick="exportLocations('gpx')" style="width:calc(100% - 32px);margin:8px 16px">
+        <span class="ie-btn-icon">📤</span>
+        <div>
+          <div class="ie-btn-text">تصدير GPX</div>
+          <div class="ie-btn-desc">لتطبيقات GPS الأخرى</div>
+        </div>
+      </div>
+      <div class="ie-btn" onclick="exportLocations('kml')" style="width:calc(100% - 32px);margin:8px 16px">
+        <span class="ie-btn-icon">📤</span>
+        <div>
+          <div class="ie-btn-text">تصدير KML</div>
+          <div class="ie-btn-desc">لـ Google Earth</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== LOCATIONS ====================
+function renderLocations() {
+  const list = document.getElementById('locationsList');
+  
+  if (state.savedLocations.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📍</div>
+        <div class="empty-state-text">لا توجد مواقع محفوظة</div>
+        <div class="empty-state-desc">اضغط على "حفظ موقع" لإضافة موقع جديد</div>
+      </div>
+    `;
+    return;
+  }
+  
+  list.innerHTML = state.savedLocations.map((loc, i) => `
+    <div class="location-item fade-in" onclick="navigateToLocation(${i})">
+      <div class="loc-icon">📍</div>
+      <div class="loc-info">
+        <div class="loc-name">${loc.name}</div>
+        <div class="loc-coords">${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}</div>
+      </div>
+      <div class="loc-actions">
+        <div class="loc-action-btn" onclick="event.stopPropagation();shareLocation(${i})">📤</div>
+        <div class="loc-action-btn" onclick="event.stopPropagation();copyCoords(${i})">📋</div>
+        <div class="loc-action-btn" onclick="event.stopPropagation();deleteLocation(${i})">🗑️</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveCurrentLocation() {
+  if (state.currentLat === null) {
+    showToast('❌ جاري تحديد الموقع...');
+    return;
+  }
+  
+  const name = prompt('اسم الموقع:', `موقع ${state.savedLocations.length + 1}`);
+  if (name) {
+    saveLocation(state.currentLat, state.currentLng, name);
+    showToast('✅ تم حفظ الموقع');
+  }
+}
+
+function saveLocation(lat, lng, name) {
+  state.savedLocations.push({
+    name,
+    lat,
+    lng,
+    date: new Date().toLocaleDateString('ar-SA'),
+    time: new Date().toLocaleTimeString('ar-SA')
+  });
+  saveData();
+  renderLocations();
+}
+
+function navigateToLocation(index) {
+  const loc = state.savedLocations[index];
+  document.getElementById('destLat').value = loc.lat.toFixed(6);
+  document.getElementById('destLng').value = loc.lng.toFixed(6);
+  state.destName = loc.name;
+  setDestination();
+  switchPage('navigation');
+}
+
+function deleteLocation(index) {
+  if (confirm('هل تريد حذف هذا الموقع؟')) {
+    state.savedLocations.splice(index, 1);
+    saveData();
+    renderLocations();
+    showToast('تم حذف الموقع');
+  }
+}
+
+function copyCoords(index) {
+  const loc = state.savedLocations[index];
+  const text = `${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 تم نسخ الإحداثيات');
+  }).catch(() => {
+    showToast('📋 ' + text);
+  });
+}
+
+function shareLocation(index) {
+  const loc = state.savedLocations[index];
+  const text = `${loc.name}\n📍 ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}\nhttps://maps.google.com/?q=${loc.lat},${loc.lng}`;
+  
+  if (navigator.share) {
+    navigator.share({ title: loc.name, text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('📋 تم نسخ معلومات الموقع');
+    });
+  }
+}
+
+function filterLocations() {
+  const query = document.getElementById('locSearch').value.toLowerCase();
+  const items = document.querySelectorAll('.location-item');
+  items.forEach((item, i) => {
+    const loc = state.savedLocations[i];
+    if (loc && (loc.name.toLowerCase().includes(query) || 
+        loc.lat.toString().includes(query) || 
+        loc.lng.toString().includes(query))) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+// ==================== EXPORT/IMPORT ====================
+function exportLocations(format) {
+  if (state.savedLocations.length === 0) {
+    showToast('❌ لا توجد مواقع للتصدير');
+    return;
+  }
+  
+  let content, filename, type;
+  
+  switch(format) {
+    case 'gpx':
+      content = generateGPX();
+      filename = 'matoo_locations.gpx';
+      type = 'application/gpx+xml';
+      break;
+    case 'kml':
+      content = generateKML();
+      filename = 'matoo_locations.kml';
+      type = 'application/vnd.google-earth.kml+xml';
+      break;
+    case 'kmz':
+      content = generateKML();
+      filename = 'matoo_locations.kml';
+      type = 'application/vnd.google-earth.kml+xml';
+      showToast('📤 تم التصدير بصيغة KML (KMZ يتطلب ضغط)');
+      break;
+    case 'json':
+      content = JSON.stringify(state.savedLocations, null, 2);
+      filename = 'matoo_backup.json';
+      type = 'application/json';
+      break;
+  }
+  
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  showToast(`✅ تم التصدير: ${filename}`);
+}
+
+function generateGPX() {
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MATOO GPS">
+`;
+  state.savedLocations.forEach(loc => {
+    gpx += `  <wpt lat="${loc.lat}" lon="${loc.lng}">
+    <name>${loc.name}</name>
+    <time>${loc.date}</time>
+  </wpt>
+`;
+  });
+  gpx += '</gpx>';
+  return gpx;
+}
+
+function generateKML() {
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>MATOO GPS Locations</name>
+`;
+  state.savedLocations.forEach(loc => {
+    kml += `<Placemark>
+  <name>${loc.name}</name>
+  <Point>
+    <coordinates>${loc.lng},${loc.lat},0</coordinates>
+  </Point>
+</Placemark>
+`;
+  });
+  kml += '</Document></kml>';
+  return kml;
+}
+
+function importLocations() {
+  document.getElementById('fileInput').click();
+}
+
+function handleFileImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    
+    if (file.name.endsWith('.json')) {
+      try {
+        const locs = JSON.parse(content);
+        if (Array.isArray(locs)) {
+          state.savedLocations = state.savedLocations.concat(locs);
+          saveData();
+          renderLocations();
+          showToast(`✅ تم استيراد ${locs.length} موقع`);
+        }
+      } catch(err) {
+        showToast('❌ خطأ في قراءة الملف');
+      }
+    } else if (file.name.endsWith('.gpx')) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/xml');
+      const waypoints = doc.querySelectorAll('wpt');
+      let count = 0;
+      waypoints.forEach(wpt => {
+        const lat = parseFloat(wpt.getAttribute('lat'));
+        const lng = parseFloat(wpt.getAttribute('lon'));
+        const name = wpt.querySelector('name')?.textContent || 'موقع مستورد';
+        if (!isNaN(lat) && !isNaN(lng)) {
+          state.savedLocations.push({ name, lat, lng, date: 'مستورد' });
+          count++;
+        }
+      });
+      saveData();
+      renderLocations();
+      showToast(`✅ تم استيراد ${count} موقع من GPX`);
+    } else if (file.name.endsWith('.kml')) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/xml');
+      const placemarks = doc.querySelectorAll('Placemark');
+      let count = 0;
+      placemarks.forEach(pm => {
+        const name = pm.querySelector('name')?.textContent || 'موقع مستورد';
+        const coords = pm.querySelector('coordinates')?.textContent;
+        if (coords) {
+          const [lng, lat] = coords.trim().split(',').map(Number);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            state.savedLocations.push({ name, lat, lng, date: 'مستورد' });
+            count++;
+          }
+        }
+      });
+      saveData();
+      renderLocations();
+      showToast(`✅ تم استيراد ${count} موقع من KML`);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function backupLocations() {
+  exportLocations('json');
+}
+
+function restoreLocations() {
+  document.getElementById('fileInput').click();
+}
+
+// ==================== SETTINGS ====================
+function toggleSetting(setting) {
+  switch(setting) {
+    case 'units':
+      state.settings.units = state.settings.units === 'km' ? 'mi' : 'km';
+      document.getElementById('unitsDesc').textContent = state.settings.units === 'km' ? 'كيلومتر' : 'ميل';
+      document.getElementById('unitsToggle').classList.toggle('active');
+      break;
+    case 'sound':
+      state.settings.sound = !state.settings.sound;
+      document.getElementById('soundToggle').classList.toggle('active');
+      break;
+    case 'keepScreen':
+      state.settings.keepScreen = !state.settings.keepScreen;
+      document.getElementById('keepScreenToggle').classList.toggle('active');
+      if (state.settings.keepScreen && 'wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').catch(() => {});
+      }
+      break;
+    case 'coordFormat':
+      const formats = ['dd', 'dms', 'dm'];
+      const idx = formats.indexOf(state.settings.coordFormat);
+      state.settings.coordFormat = formats[(idx + 1) % 3];
+      const labels = { dd: 'عشري (DD)', dms: 'درجات/دقائق/ثواني', dm: 'درجات/دقائق' };
+      document.getElementById('coordFormatDesc').textContent = labels[state.settings.coordFormat];
+      break;
+  }
+  saveData();
+}
+
+// ==================== NAVIGATION ====================
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  
+  document.getElementById('page-' + page).classList.add('active');
+  event.currentTarget?.classList.add('active') || 
+    document.querySelectorAll('.nav-item').forEach(n => {
+      if (n.querySelector('.nav-label').textContent === 
+        {navigation:'الملاحة',map:'الخريطة',tools:'الأدوات',locations:'المواقع',settings:'الإعدادات'}[page]) {
+        n.classList.add('active');
+      }
+    });
+  
+  // Refresh map when switching to map page
+  if (page === 'map' && state.mapInstance) {
+    setTimeout(() => state.mapInstance.invalidateSize(), 100);
+  }
+}
+
+// ==================== UTILITIES ====================
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + 
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function calculateBearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const lat1Rad = lat1 * Math.PI / 180;
+  const lat2Rad = lat2 * Math.PI / 180;
+  
+  const y = Math.sin(dLng) * Math.cos(lat2Rad);
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+            Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+  
+  let bearing = Math.atan2(y, x) * 180 / Math.PI;
+  return (bearing + 360) % 360;
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function playArrivalAlert() {
+  if (!state.settings.sound) return;
+  
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.value = 0.3;
+    osc.start();
+    setTimeout(() => {
+      osc.frequency.value = 1100;
+      setTimeout(() => {
+        osc.frequency.value = 880;
+        setTimeout(() => osc.stop(), 200);
+      }, 200);
+    }, 200);
+  } catch(e) {}
+  
+  showToast('🎯 لقد وصلت إلى الوجهة!');
+}
+
+// Update trip duration display
+setInterval(() => {
+  if (state.tripActive && document.getElementById('tripTimeLive')) {
+    document.getElementById('tripTimeLive').textContent = getTripDuration();
+    document.getElementById('tripDistLive').textContent = (state.tripDistance / 1000).toFixed(1);
+  }
+}, 1000);
+
+// Prevent screen sleep if setting is on
+setInterval(() => {
+  if (state.settings.keepScreen && 'wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').catch(() => {});
+  }
+}, 30000);
+</script>
+</body>
+</html>
