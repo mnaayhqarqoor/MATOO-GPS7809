@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موقع مفاجأة!</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* خلفية متدرجة بألوان تيك توك */
+            background: linear-gradient(135deg, #000000, #1a1a1a, #252525);
+            color: white;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 90%;
+        }
+
+        .emoji {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: laugh 0.5s infinite alternate;
+        }
+
+        @keyframes laugh {
+            from { transform: rotate(-10deg); }
+            to { transform: rotate(10deg); }
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .message {
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            color: #ff0050; /* لون التيك توك الزهري */
+            font-weight: bold;
+        }
+
+        .tiktok-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background-color: #ffffff;
+            color: #000000;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(255, 0, 80, 0.6), 0 0 40px rgba(0, 242, 234, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .tiktok-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 0, 80, 0.8), 0 0 50px rgba(0, 242, 234, 0.6);
+        }
+
+        .tiktok-logo {
+            width: 24px;
+            height: 24px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="emoji">😂👇</div>
+        
+        <h1>أهاااا! تميمت عليك!</h1>
+        
+        <p class="message">
+            لا بس خليتك تدخل الموقع عشان تتابعني على <span class="highlight">تيك توك</span>! 😎🔥<br>
+            يلا لا تطولها، اضغط الزر تحت وافتح بروفايلي!
+        </p>
+
+        <a href="https://www.tiktok.com/@mnaayhqarqoor?_r=1&_t=ZS-97cuSwQSQsB" target="_blank" class="tiktok-btn">
+            <svg class="tiktok-logo" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M448 209.9a210.1 210.1 0 0 1 -122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.9 121.9 0 0 0 1.8 22.2h0A122.2 122.2 0 0 0 381 102.4a121.9 121.9 0 0 0 67 20.1z"/></svg>
+            ادخل حسابي في تيك توك
+        </a>
+
+        <div class="footer">
+            mnaayhqarqoor © 2024
+        </div>
+    </div>
+
+</body>
+</html>
